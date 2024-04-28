@@ -7,6 +7,7 @@
 struct termios orig_termios;
 
 void disableRawMode(){
+    tcflush(STDIN_FILENO, TCIFLUSH);
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
 
@@ -16,13 +17,13 @@ void enablerawMode(){
     atexit(disableRawMode);
 
     struct termios raw = orig_termios;
-    raw.c_lflag &= ~(ECHO | ICANON); //reading input byte-by-byte instead of line-by-line
+    raw.c_iflag &= ~IXON;
+    raw.c_lflag &= ~(ECHO | ICANON | ISIG | IEXTEN); //reading input byte-by-byte instead of line-by-line
 
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
 int main(){
-
     enablerawMode();
 
     char c;
@@ -33,6 +34,6 @@ int main(){
             printf("%d ('%c')\n", c, c);
         }
     }
-
+ 
     return 1;
 }
