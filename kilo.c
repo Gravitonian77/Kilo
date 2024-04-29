@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
@@ -13,10 +14,13 @@
 /*** data ***/
 
 struct editorConfig{
+    int screenrows;
+    int screencols;
     struct termios orig_termios;
 };
 
 struct editorConfig E;
+
 /*** terminal ***/
 
 void editorRefreshScreen();
@@ -63,6 +67,18 @@ char editorReadKey(){
     return c;
 }
 
+int getWindowSize(int *rows, int *columns){
+    struct winsize ws;
+
+    if(ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0){
+        return -1;
+    }else{
+        *rows = ws.ws_row;
+        *columns = ws.ws_col;
+        return 0;
+    }
+}
+
 /*** output ***/
 
 void editorRefreshScreen() {
@@ -75,7 +91,7 @@ void editorRefreshScreen() {
 }
 
 void editorDrawRows(){
-    for(int i = 0; i < 24; i++){
+    for(int i = 0; i < E.screenrows; i++){
         write(STDOUT_FILENO, "~\r\n", 3);
     }
 }
@@ -95,10 +111,15 @@ void editorProcessKeypress(){
 
 /*** init ***/
 
+void initEditor(){
+    if(getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
+}
+
 int main(){
 
     enablerawMode();
-    
+    initEditor();
+
     while(1){
         editorRefreshScreen();
         editorProcessKeypress();
