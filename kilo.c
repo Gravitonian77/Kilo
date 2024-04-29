@@ -7,9 +7,13 @@
 #include <stdio.h>
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <string.h>
+
 
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
+
+
 
 /*** data ***/
 
@@ -20,6 +24,8 @@ struct editorConfig{
 };
 
 struct editorConfig E;
+
+
 
 /*** terminal ***/
 
@@ -104,26 +110,54 @@ int getWindowSize(int *rows, int *columns){
     }
 }
 
+/*** append buffer ***/
+
+struct abuf{
+    char *b;
+    int len;
+} ;
+
+#define ABUF_INIT {NULL, 0}
+
+void abAppend(struct abuf *ab, const char *s, int len){
+    char *new = realloc(ab->b, ab->len + len);
+
+    if(new == NULL) return;
+    memcpy(&new[ab->len], s, len);
+    ab->b = new;
+    ab->len += len;
+}
+
+void abFree(struct abuf * ab){
+    free(ab->b);
+}
+
 /*** output ***/
 
 void editorRefreshScreen() {
-  write(STDOUT_FILENO, "\x1b[2J", 4);
-  write(STDOUT_FILENO, "\x1b[H", 3);    //Repositions the cursor to the top-left corner
-                                        //Dont ask me how, idk.
-  editorDrawRows();
 
-  write(STDOUT_FILENO, "\x1b[H", 3);
+  struct abuf ab = ABUF_INIT;  
+  abAppend(&ab, "\x1b[2J", 4);
+  abAppend(&ab, "\x1b[H", 3);    //Repositions the cursor to the top-left corner
+                                        //Dont ask me how, idk.
+  editorDrawRows(&ab);
+
+  abAppend(&ab, "\x1b[H", 3);   //Reposition the cursor after printing out tildes
+  write(STDOUT_FILENO, ab.b, ab.len);
+  abFree(&ab);
 }
 
-void editorDrawRows(){
+void editorDrawRows(struct abuf * ab){
     for(int i = 0; i < E.screenrows; i++){
-        write(STDOUT_FILENO, "~", 1);
+        abAppend(ab, "~", 1);
         if(i < E.screenrows - 1){
-            write(STDOUT_FILENO, "\r\n", 2);
+            abAppend(ab, "\r\n", 2);
         }
-        
+
     }
 }
+
+
 
 /*** input ***/
 
@@ -137,6 +171,8 @@ void editorProcessKeypress(){
             break;
     }
 }
+
+
 
 /*** init ***/
 
