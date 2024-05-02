@@ -18,6 +18,7 @@
 /*** data ***/
 
 struct editorConfig{
+    int cx, cy;
     int screenrows;
     int screencols;
     struct termios orig_termios;
@@ -142,6 +143,10 @@ void editorRefreshScreen() {
   abAppend(&ab, "\x1b[H", 3);    //Repositions the cursor to the top-left corner
                                         //Dont ask me how, idk.
   editorDrawRows(&ab);
+  
+  char buff[32];
+  snprintf(buff, sizeof(buff), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
+  abAppend(&ab, buff, strlen(buff));
 
   abAppend(&ab, "\x1b[H", 3);   //Reposition the cursor after printing out tildes
   abAppend(&ab, "\x1b[?25h", 6);
@@ -179,6 +184,23 @@ void editorDrawRows(struct abuf * ab){
 
 /*** input ***/
 
+void editorMoveCursor(char key){
+    switch(key){
+        case 'a':
+            E.cx--;
+            break;
+        case 'd':
+            E.cx++;
+            break;
+        case 'w':
+            E.cy--;
+            break;
+        case 's':
+            E.cy++;
+            break;
+    }
+}
+
 void editorProcessKeypress(){
     char c = editorReadKey();
 
@@ -186,6 +208,12 @@ void editorProcessKeypress(){
         case CTRL_KEY('q'):
             editorRefreshScreen();
             exit(0);
+            break;
+        case 'w':
+        case 'a':
+        case 's':
+        case 'd':
+            editorMoveCursor(c);
             break;
     }
 }
@@ -195,6 +223,8 @@ void editorProcessKeypress(){
 /*** init ***/
 
 void initEditor(){
+    E.cx = 0;
+    E.cy = 0;
     if(getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
 }
 
